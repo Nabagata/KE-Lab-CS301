@@ -9,6 +9,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
 import java.util.StringTokenizer;
 
 /**
@@ -24,7 +27,8 @@ class Node{
     public Node(String class_name, int leaf){
         this.class_name=class_name;
         this.leaf=leaf;
-        this.children=new HashMap<String,Node>();
+        if(leaf == 0)
+            this.children=new HashMap<String,Node>();
     }
     public float get_value(float count,float no_of_rows){
         if(count == 0){
@@ -34,6 +38,7 @@ class Node{
         return result;
     }
     public int gain(ArrayList<ArrayList<String>> hs,ArrayList<ArrayList<String>> dattr,int endindex,float no_of_rows,int no_of_attributes,ArrayList<Integer> attrlist){
+        System.out.println("===========Gain starts===============");
         float count_yes=0;
         float count_no=0;
         for(int i=0;i<no_of_rows;i++){
@@ -46,16 +51,16 @@ class Node{
                 count_no++;
             }
         }
-       System.out.println(count_yes);
-       System.out.println(count_no);
-       float gain=(float) (-((count_yes/no_of_rows)*(Math.log((count_yes/no_of_rows))/Math.log(2)))-((count_no/no_of_rows)*(Math.log((count_no/no_of_rows))/Math.log(2))));
+//       System.out.println(count_yes);
+//       System.out.println(count_no);
+       float gain=(float) (((count_yes/no_of_rows)*(this.get_value(count_yes,no_of_rows)))+((count_no/no_of_rows)*this.get_value(count_no, no_of_rows)));
        float max=-9999999;
        System.out.println("Gain: "+ gain);
        int min_index=0;
        for(int i=1;i<no_of_attributes-1;i++){
            if(attrlist.contains(i)){
            float attr_gain=0;
-//           System.out.println(dattr.get(i));
+           System.out.println(dattr.get(i));
            
            for(int j=0;j<dattr.get(i).size();j++){
                float total_count=0;
@@ -87,25 +92,93 @@ class Node{
            }
        }
        }
-       
+       System.out.println("===========Gain ends===============");
        return min_index;
     }
     
     
     
-    public Node form_tree(ArrayList<ArrayList<String>> hs,ArrayList<ArrayList<String>> dattr,int endindex,float no_of_rows,int no_of_attributes,ArrayList<Integer> attrlist){
-        int split_index=this.gain(hs, dattr, endindex, no_of_rows, no_of_attributes,attrlist);
-        attrlist.remove(split_index);
+    public void form_tree(ArrayList<ArrayList<String>> hs,ArrayList<ArrayList<String>> dattr,int endindex,float no_of_rows,int no_of_attributes,ArrayList<Integer> attrlist,int level,Node n){
+        if(attrlist.isEmpty() == true)
+        {
+            System.out.println("Empty attr list");
+            n.class_name="yes";
+            n.leaf=1;
+            return;
+            
+        }
+        for(int i=0;i<level;i++)
+            System.out.print("\t");
+        System.out.println("In level"+ level);
+        System.out.println(attrlist.toString());
+        int split_index=n.gain(hs, dattr, endindex, no_of_rows, no_of_attributes,attrlist);
+        attrlist.remove(new Integer(split_index));
+        int count_yes=0;
+        int count_no=0;
+        System.out.println("Data set: "+ hs.toString());
+        System.out.println("Split index: "+split_index);
+        System.out.println("No of rows: "+no_of_rows);
         for(int i=0;i<dattr.get(split_index).size();i++){
             ArrayList<ArrayList<String>> dh=new ArrayList<ArrayList<String>>();
             for(int j=0;j<no_of_rows;j++){
+//                System.out.println(hs.get(j).get(split_index));
                 if(hs.get(j).get(split_index).toString().equals(dattr.get(split_index).get(i))){
                     dh.add(hs.get(j));
+//                    System.out.println("Got one");
+                    if(hs.get(j).get(endindex).compareTo("yes") == 1)
+                        count_yes++;
+                    else{
+                        count_no++;
+                    }
                 }
-                this.children.put(dattr.get(split_index).get(i),)
-            }
+            }   
+                System.out.println("Count of yes: "+count_yes);
+                System.out.println("Count of no : "+count_no);
+                if(count_yes == 0)
+                {
+                    System.out.println("Leaf node and is no");
+                    n.children.put(dattr.get(split_index).get(i), new Node("no",1));
+                }
+                else if(count_no == 0){
+                    System.out.println("Leaf node yes");
+                    n.children.put(dattr.get(split_index).get(i), new Node("yes",1));
+                }
+                else{
+                    System.out.println("Not a leaf not finding children for "+dattr.get(split_index).get(i));
+                    Node n2=new Node(String.valueOf(split_index),0);
+                    n.children.put(dattr.get(split_index).get(i),n2);
+                    form_tree(dh,dattr,endindex,dh.size(),no_of_attributes,attrlist,level+1,n2);
+                    System.out.println("Back to level"+ level);
+                    count_yes=0;
+                    count_no=0;
+                }
+            
         }
         
+        
+        
+    }
+    
+    public void view_tree(int level,Node n){
+        for(int i=0;i<level;i++)
+            System.out.print("\t");
+        System.out.print(n.class_name+" : "+n.leaf);
+        if(this.leaf == 0){
+            if(n.children != null){
+            for(int i=0;i<n.children.size();i++){
+                System.out.println();
+                Iterator it = n.children.entrySet().iterator();
+                while (it.hasNext()) {
+                Map.Entry pair = (Map.Entry)it.next();
+                System.out.println(pair.getKey());
+                if(pair.getValue()!=null)
+                    view_tree(level+1, (Node) pair.getValue());
+                System.out.println();
+                it.remove(); // avoids a ConcurrentModificationException
+                }
+            }
+        }
+        }
     }
     
 }
@@ -162,11 +235,16 @@ public class decisiontree {
          System.out.println(dattr.toString());
          System.out.println("No of attributes: "+ no_of_attributes + ": No of records: "+no_of_records);
          ArrayList<Integer> attrlist=new ArrayList<Integer>();
-         for(int i=1;i<6;i++)
+         for(int i=1;i<5;i++)
              attrlist.add(i);
          //Found each attribute
+         System.out.println(attrlist.toString());
          Node n=new Node("start",0);
-         System.out.println(n.gain(hs, dattr, no_of_attributes-1, no_of_records, no_of_attributes,attrlist));
+//         System.out.println(n.gain(hs, dattr, no_of_attributes-1, no_of_records, no_of_attributes,attrlist));
+        n.form_tree(hs, dattr, no_of_attributes-1, no_of_records, no_of_attributes, attrlist, 0, n);
+        System.out.println("============View tree=============");
+        n.view_tree(0, n);
+        System.out.println("============Done==================");
          
      }
 }
